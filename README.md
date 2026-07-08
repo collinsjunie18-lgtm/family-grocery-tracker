@@ -11,7 +11,7 @@ clear it.
 - **Free to run indefinitely** at family scale: static hosting (Vercel free
   tier) + Firebase Firestore (free Spark plan, no credit card) + free web push
   (VAPID) — no paid APIs anywhere.
-- **Zero typing for the 20 default items.** A "Something else…" tile lets you
+- **Zero typing for the 27 default items across 8 categories.** A "Something else…" tile lets you
   type a new item once; after that it's a permanent button.
 
 ## How it works

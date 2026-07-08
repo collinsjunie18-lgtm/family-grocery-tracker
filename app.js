@@ -8,6 +8,8 @@ const CATEGORIES = [
   { id: "produce", name: "Produce", emoji: "🍌" },
   { id: "drinks", name: "Drinks", emoji: "🧃" },
   { id: "household", name: "Household", emoji: "🧻" },
+  { id: "meats", name: "Meats", emoji: "🥩" },
+  { id: "leftovers", name: "Leftovers", emoji: "🍱" },
 ];
 
 const DEFAULT_ITEMS = [
@@ -31,6 +33,13 @@ const DEFAULT_ITEMS = [
   { name: "Toilet paper", category: "household", emoji: "🚽" },
   { name: "Dish soap", category: "household", emoji: "🧼" },
   { name: "Trash bags", category: "household", emoji: "🗑️" },
+  { name: "Chicken", category: "meats", emoji: "🍗" },
+  { name: "Ground beef", category: "meats", emoji: "🥩" },
+  { name: "Bacon", category: "meats", emoji: "🥓" },
+  { name: "Deli meat", category: "meats", emoji: "🍖" },
+  { name: "Fish", category: "meats", emoji: "🐟" },
+  { name: "Leftovers", category: "leftovers", emoji: "🍲" },
+  { name: "Prepared meals", category: "leftovers", emoji: "🍱" },
 ];
 
 const cfg = window.APP_CONFIG || {};
@@ -107,7 +116,7 @@ async function main() {
       (snap) => {
         items = new Map();
         snap.forEach((d) => items.set(d.id, d.data()));
-        if (snap.empty && !seeded) seedDefaults();
+        if (!seeded) seedMissingDefaults();
         render();
       },
       (err) => {
@@ -120,10 +129,16 @@ async function main() {
   }
 }
 
-async function seedDefaults() {
+// Writes any default item that isn't in the database yet — covers both a brand
+// new database and existing ones after new defaults are added in an update.
+async function seedMissingDefaults() {
   seeded = true;
+  const missing = DEFAULT_ITEMS.map((item, i) => ({ item, i })).filter(
+    ({ item }) => !items.has("default-" + slug(item.name))
+  );
+  if (!missing.length) return;
   const batch = fs.writeBatch(db);
-  DEFAULT_ITEMS.forEach((item, i) => {
+  for (const { item, i } of missing) {
     batch.set(fs.doc(db, "items", "default-" + slug(item.name)), {
       ...item,
       status: "ok",
@@ -131,7 +146,7 @@ async function seedDefaults() {
       sortOrder: i,
       updatedAt: fs.serverTimestamp(),
     });
-  });
+  }
   await batch.commit().catch(() => {});
 }
 
