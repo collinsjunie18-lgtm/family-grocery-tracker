@@ -211,6 +211,59 @@ function renderHome() {
   wireCommon();
 }
 
+// The default catalog lives in code (DEFAULT_ITEMS), so every default tile
+// renders whether or not Firestore has been seeded. Firestore only supplies
+// live status and any custom items a family added. This is what makes new
+// categories/items appear for everyone the moment the code ships — no
+// dependence on what's already in the database.
+function categoryItems(catId) {
+  const defaults = DEFAULT_ITEMS.map((item, i) => ({ item, i }))
+    .filter(({ item }) => item.category === catId)
+    .map(({ item, i }) => {
+      const id = "default-" + slug(item.name);
+      const doc = items.get(id);
+      return {
+        id,
+        name: item.name,
+        category: catId,
+        emoji: item.emoji,
+        custom: false,
+        sortOrder: i,
+        status: (doc && doc.status) || "ok",
+        updatedAt: doc && doc.updatedAt,
+      };
+    });
+  const custom = [...items.entries()]
+    .map(([id, it]) => ({ id, ...it }))
+    .filter((it) => it.category === catId && it.custom);
+  return [...defaults, ...custom].sort((a, b) => {
+    if (!!a.custom !== !!b.custom) return a.custom ? 1 : -1;
+    if (!a.custom) return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    return a.name.localeCompare(b.name);
+  });
+}
+
+// Resolve an item by id from Firestore, falling back to the code default when
+// it hasn't been written to the database yet (so its tile still works on tap).
+function getItem(itemId) {
+  const doc = items.get(itemId);
+  if (doc) return { id: itemId, ...doc };
+  const i = DEFAULT_ITEMS.findIndex((it) => "default-" + slug(it.name) === itemId);
+  if (i !== -1) {
+    const def = DEFAULT_ITEMS[i];
+    return {
+      id: itemId,
+      name: def.name,
+      category: def.category,
+      emoji: def.emoji,
+      custom: false,
+      sortOrder: i,
+      status: "ok",
+    };
+  }
+  return null;
+}
+
 function renderCategory(catId) {
   const cat = CATEGORIES.find((c) => c.id === catId);
   if (!cat) {
@@ -220,14 +273,7 @@ function renderCategory(catId) {
   $title.textContent = `${cat.emoji} ${cat.name}`;
   $back.hidden = false;
 
-  const catItems = [...items.entries()]
-    .map(([id, it]) => ({ id, ...it }))
-    .filter((it) => it.category === catId)
-    .sort((a, b) => {
-      if (!!a.custom !== !!b.custom) return a.custom ? 1 : -1;
-      if (!a.custom) return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
-      return a.name.localeCompare(b.name);
-    });
+  const catItems = categoryItems(catId);
 
   const tiles = catItems
     .map((it) => {
@@ -297,7 +343,7 @@ function renderSetupNeeded() {
 // ── Item actions ─────────────────────────────────────────────────────────────
 
 function openItemSheet(itemId) {
-  const it = items.get(itemId);
+  const it = getItem(itemId);
   if (!it) return;
   const gotBtn =
     it.status !== "ok"
@@ -363,13 +409,24 @@ function openAddSheet(catId) {
 }
 
 async function markItem(itemId, status) {
-  const it = items.get(itemId);
+  const it = getItem(itemId);
   if (!it) return;
+  // setDoc+merge so a default tile that was never seeded gets created on first
+  // tap (updateDoc would fail on a missing doc); existing docs just get updated.
   await fs
-    .updateDoc(fs.doc(db, "items", itemId), {
-      status,
-      updatedAt: fs.serverTimestamp(),
-    })
+    .setDoc(
+      fs.doc(db, "items", itemId),
+      {
+        name: it.name,
+        category: it.category,
+        emoji: it.emoji || "📦",
+        custom: !!it.custom,
+        sortOrder: it.sortOrder ?? 0,
+        status,
+        updatedAt: fs.serverTimestamp(),
+      },
+      { merge: true }
+    )
     .catch((e) => toast("Couldn't save: " + e.code));
   toast(
     status === "ok" ? `${it.name} — got it ✓` : `${it.name} — on the list`
