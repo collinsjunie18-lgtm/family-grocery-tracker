@@ -1,5 +1,7 @@
 /* Family Groceries — tap-only shared grocery list.
-   Data lives in Firestore (realtime sync); push goes through /api/notify. */
+   Data lives in Firestore (realtime sync); push goes through /api/notify.
+   Build marker: categories = Dairy, Bakery, Pantry, Produce, Drinks, Household,
+   Meats, Leftovers. Bump this line to force a fresh Vercel deploy / cache bust. */
 
 const CATEGORIES = [
   { id: "dairy", name: "Dairy", emoji: "🥛" },
