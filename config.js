@@ -8,12 +8,12 @@
 
 window.APP_CONFIG = {
   firebase: {
-    apiKey: "YOUR_FIREBASE_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID",
+    apiKey: "AIzaSyDLp7W0panpWqj0prpeD5O8LtRhxt7kV5o",
+    authDomain: "family-grocery-tracker-1e31b.firebaseapp.com",
+    projectId: "family-grocery-tracker-1e31b",
+    storageBucket: "family-grocery-tracker-1e31b.firebasestorage.app",
+    messagingSenderId: "351883934492",
+    appId: "1:351883934492:web:65930a7df192e4ed0458d9",
   },
-  vapidPublicKey: "YOUR_VAPID_PUBLIC_KEY",
+  vapidPublicKey: "BNOg3fY7VBJtmPxUlZqK_h-BBnNRe8xHQ69VP-tVm2rE-pdefunhdFT5mlZAzplaGNN2iYreSt-DuMD5SR4if5o",
 };
