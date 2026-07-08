@@ -1,0 +1,12 @@
+{
+  "name": "family-grocery-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tap-only shared family grocery list PWA with realtime sync and free web push.",
+  "scripts": {
+    "icons": "node scripts/make-icons.js"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

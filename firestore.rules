@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // No accounts by design (see README) — anyone with the app URL / project ID
+    // can read and write, so the rules validate shape and size instead.
+    match /items/{itemId} {
+      allow read: if true;
+      allow create, update: if
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 60 &&
+        request.resource.data.category is string &&
+        request.resource.data.status in ['ok', 'low', 'out'];
+      allow delete: if true;
+    }
+    match /subscriptions/{deviceId} {
+      allow read: if true;
+      allow create, update: if
+        request.resource.data.data is string &&
+        request.resource.data.data.size() <= 4000;
+      allow delete: if true;
+    }
+  }
+}
