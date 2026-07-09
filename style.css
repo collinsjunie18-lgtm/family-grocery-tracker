@@ -80,6 +80,18 @@ main {
 
 .loading { color: var(--muted); text-align: center; margin-top: 40px; }
 
+.conn-note {
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.conn-note.offline { color: var(--amber); }
+
 .section-label {
   margin: 18px 4px 8px;
   font-size: 13px;

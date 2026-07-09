@@ -64,6 +64,10 @@ let fs = null; // firestore module namespace
 let items = new Map(); // id -> data
 let view = { name: "home" };
 let seeded = false;
+// "connecting" while we reach Firestore, "online" once the first snapshot
+// lands, "offline" if it fails or is too slow. The UI never blocks on this —
+// tiles render immediately regardless.
+let dbState = "connecting";
 
 const deviceId = (() => {
   let id = localStorage.getItem("deviceId");
@@ -99,11 +103,32 @@ $backdrop.addEventListener("click", (e) => {
 
 main();
 
-async function main() {
+function main() {
   if (!configured) {
     renderSetupNeeded();
     return;
   }
+  // Draw the home screen from code IMMEDIATELY. The category tiles live in
+  // CATEGORIES and never depend on the database — so they must appear on first
+  // paint, before (and independent of) any Firestore connection. This is what
+  // guarantees a first-time visitor never sees a frozen "Loading…".
+  render();
+  updateBell();
+  // Then reach the database in the background to overlay live item status.
+  connectFirestore();
+}
+
+async function connectFirestore() {
+  // Watchdog: if we haven't connected in a few seconds (blocked CDN, stalled
+  // connection that never errors), fall back to the offline state. The tiles
+  // are already interactive, so this only updates the status note.
+  const watchdog = setTimeout(() => {
+    if (dbState !== "online") {
+      dbState = "offline";
+      render();
+    }
+  }, 8000);
+
   try {
     const appMod = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
     fs = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
@@ -116,18 +141,25 @@ async function main() {
     fs.onSnapshot(
       fs.collection(db, "items"),
       (snap) => {
+        clearTimeout(watchdog);
+        dbState = "online";
         items = new Map();
         snap.forEach((d) => items.set(d.id, d.data()));
         if (!seeded) seedMissingDefaults();
         render();
       },
-      (err) => {
-        $app.innerHTML = `<p class="loading">Could not load the list (${escapeHtml(err.code || "error")}). Check the internet connection and Firestore rules.</p>`;
+      () => {
+        // Reads failed (network / rules). Keep the tiles up; just flag offline.
+        clearTimeout(watchdog);
+        dbState = "offline";
+        render();
       }
     );
-    updateBell();
   } catch (e) {
-    $app.innerHTML = `<p class="loading">Could not start: ${escapeHtml(e.message)}</p>`;
+    // Firebase SDK failed to load (blocked or offline). Tiles stay usable.
+    clearTimeout(watchdog);
+    dbState = "offline";
+    render();
   }
 }
 
@@ -204,6 +236,7 @@ function renderHome() {
   }).join("");
 
   $app.innerHTML = `
+    ${connBannerHtml()}
     ${notifBannerHtml()}
     <div class="section-label">Shopping list</div>
     ${listHtml}
@@ -211,6 +244,16 @@ function renderHome() {
     <div class="grid">${catsHtml}</div>
   `;
   wireCommon();
+}
+
+// Non-blocking status line shown only while connecting or when offline. It
+// never gates the tiles — they're always visible underneath it.
+function connBannerHtml() {
+  if (dbState === "online") return "";
+  if (dbState === "offline") {
+    return `<div class="conn-note offline">Offline — showing your list from this device. Changes may not sync until you reconnect.</div>`;
+  }
+  return `<div class="conn-note">Syncing your list…</div>`;
 }
 
 // The default catalog lives in code (DEFAULT_ITEMS), so every default tile
@@ -387,6 +430,11 @@ function openAddSheet(catId) {
         input.focus();
         return;
       }
+      if (!db || !fs) {
+        closeSheet();
+        toast("Still connecting — try again in a moment");
+        return;
+      }
       closeSheet();
       const id = "custom-" + catId + "-" + slug(name);
       await fs
@@ -413,6 +461,10 @@ function openAddSheet(catId) {
 async function markItem(itemId, status) {
   const it = getItem(itemId);
   if (!it) return;
+  if (!db || !fs) {
+    toast("Still connecting — try again in a moment");
+    return;
+  }
   // setDoc+merge so a default tile that was never seeded gets created on first
   // tap (updateDoc would fail on a missing doc); existing docs just get updated.
   await fs
