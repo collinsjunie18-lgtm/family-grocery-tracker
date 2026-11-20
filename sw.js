@@ -1,6 +1,6 @@
 /* Service worker: offline shell + web push. */
 
-const CACHE = "groceries-v2";
+const CACHE = "groceries-v3";
 const SHELL = [
   "/",
   "/index.html",
